@@ -80,7 +80,7 @@ class Player:
         cards = self.hands[1:] if hide_first else self.hands
         return " ".join(str(card) for card in cards)
 
-class BlackjackGame:
+class blackjackGame:
     def __init__(self):
         self.deck = Deck()
         self.dealer = Player("庄家")
@@ -160,7 +160,7 @@ class BlackjackGame:
             self.deck = Deck()
 
 if __name__ == "__main__":
-    game = BlackjackGame()
+    game = blackjackGame()
     game.add_player("玩家1")
     game.add_player("玩家2")
     

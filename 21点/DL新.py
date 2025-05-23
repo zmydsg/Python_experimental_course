@@ -159,7 +159,7 @@ class Deck:
         """获取剩余牌的数量"""
         return dict(self.remaining_cards)
 
-class BlackjackEnv:
+class blackjackEnv:
     """21点游戏环境，用于强化学习"""
     def __init__(self, num_decks=6):
         self.deck = Deck(num_decks)
@@ -436,7 +436,7 @@ class DoubleDQNAgent:
 
 def train_agent(episodes=10000, batch_size=64, save_interval=500):
     """训练智能体"""
-    env = BlackjackEnv()
+    env = blackjackEnv()
     state_size = 29  # 玩家点数, 庄家明牌, 是否有可用A, 玩家手牌分布(13), 牌组分布(13)
     action_size = 2  # 停牌或要牌
     agent = DoubleDQNAgent(state_size, action_size)
@@ -527,7 +527,7 @@ def train_agent(episodes=10000, batch_size=64, save_interval=500):
 
 def evaluate_agent(agent, num_games=10000, verbose=True):
     """评估智能体的表现"""
-    env = BlackjackEnv()
+    env = blackjackEnv()
     wins = 0
     losses = 0
     draws = 0
@@ -566,7 +566,7 @@ def evaluate_agent(agent, num_games=10000, verbose=True):
 
 def simulate_games(agent, num_games=10000):
     """使用训练好的智能体模拟游戏"""
-    env = BlackjackEnv()
+    env = blackjackEnv()
     wins = 0
     losses = 0
     draws = 0
