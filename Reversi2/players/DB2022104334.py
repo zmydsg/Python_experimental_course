@@ -1,48 +1,20 @@
-from Reversi import PossibleMove, ValidCell
+from Reversi import PossibleMove
 import random
 
 # 八个方向偏移 (dx, dy)
 DIRECTIONS = [(-1,-1),(-1,0),(-1,1),(0,-1),(0,1),(1,-1),(1,0),(1,1)]
 
-# 静态阶段权重表（含边框填充）
-STAGE_WEIGHTS = {
-    'opening': [
-        [0]*10,
-        [0,120,-180,8,8,8,8,-180,120,0],
-        [0,-180,-250,-5,-5,-5,-5,-250,-180,0],
-        [0,8,-5,5,3,3,5,-5,8,0],
-        [0,8,-5,3,0,0,3,-5,8,0],
-        [0,8,-5,3,0,0,3,-5,8,0],
-        [0,8,-5,5,3,3,5,-5,8,0],
-        [0,-180,-250,-5,-5,-5,-5,-250,-180,0],
-        [0,120,-180,8,8,8,8,-180,120,0],
-        [0]*10
-    ],
-    'midgame': [
-        [0]*10,
-        [0,100,-80,12,12,12,12,-80,100,0],
-        [0,-80,-120,-5,-5,-5,-5,-120,-80,0],
-        [0,12,-5,10,8,8,10,-5,12,0],
-        [0,12,-5,8,5,5,8,-5,12,0],
-        [0,12,-5,8,5,5,8,-5,12,0],
-        [0,12,-5,10,8,8,10,-5,12,0],
-        [0,-80,-120,-5,-5,-5,-5,-120,-80,0],
-        [0,100,-80,12,12,12,12,-80,100,0],
-        [0]*10
-    ],
-    'endgame': [
-        [0]*10,
-        [0,100,-50,5,5,5,5,-50,100,0],
-        [0,-50,-80,-3,-3,-3,-3,-80,-50,0],
-        [0,5,-3,5,3,3,5,-3,5,0],
-        [0,5,-3,3,0,0,3,-3,5,0],
-        [0,5,-3,3,0,0,3,-3,5,0],
-        [0,5,-3,5,3,3,5,-3,5,0],
-        [0,-50,-80,-3,-3,-3,-3,-80,-50,0],
-        [0,100,-50,5,5,5,5,-50,100,0],
-        [0]*10
-    ]
-}
+# 位置权重矩阵
+POSITION_WEIGHTS = [
+    [100, -20,  10,   5,   5,  10, -20, 100],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [ 10,  -2,  16,   3,   3,  16,  -2,  10],
+    [  5,  -2,   3,   3,   3,   3,  -2,   5],
+    [  5,  -2,   3,   3,   3,   3,  -2,   5],
+    [ 10,  -2,  16,   3,   3,  16,  -2,  10],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [100, -20,  10,   5,   5,  10, -20, 100]
+]
 
 # 应用走法并返回被翻转的棋子列表
 def apply_move(board, color, x, y):
@@ -51,10 +23,10 @@ def apply_move(board, color, x, y):
     for dx, dy in DIRECTIONS:
         path = []
         cx, cy = x + dx, y + dy
-        while ValidCell(cx, cy) and board[cx][cy] == opponent:
+        while 1 <= cx <= 8 and 1 <= cy <= 8 and board[cx][cy] == opponent:
             path.append((cx, cy))
             cx += dx; cy += dy
-        if ValidCell(cx, cy) and board[cx][cy] == color and path:
+        if 1 <= cx <= 8 and 1 <= cy <= 8 and board[cx][cy] == color and path:
             flips.extend(path)
     board[x][y] = color
     for fx, fy in flips:
@@ -67,66 +39,34 @@ def undo_move(board, color, x, y, flips):
     for fx, fy in flips:
         board[fx][fy] = -color
 
-# 计算稳定子数量
-def count_stable_discs(board, color):
-    stable = 0
-    for x in range(1,9):
-        for y in range(1,9):
-            if board[x][y] != color: continue
-            is_stable = False
-            for dx, dy in DIRECTIONS:
-                cx, cy = x + dx, y + dy
-                blocked = False
-                while ValidCell(cx, cy):
-                    if board[cx][cy] == -color:
-                        break
-                    if board[cx][cy] == color or not ValidCell(cx, cy):
-                        blocked = True; break
-                    cx += dx; cy += dy
-                if blocked:
-                    is_stable = True; break
-            if is_stable: stable += 1
-    return stable
-
-# 边缘连续性奖励
-def edge_continuity_bonus(board, color, x, y):
-    bonus = 0
-    if x in [1,8]:
-        for dy in (-1,1):
-            if ValidCell(x, y+dy) and board[x][y+dy] == color:
-                bonus += 5
-    if y in [1,8]:
-        for dx in (-1,1):
-            if ValidCell(x+dx, y) and board[x+dx][y] == color:
-                bonus += 5
-    return bonus
-
-# 获取当前阶段权重
-def get_stage(board):
-    total = sum(r.count(1) + r.count(-1) for r in board)
-    if total <= 16: return 'opening'
-    if total <= 48: return 'midgame'
-    return 'endgame'
-
 # 评估函数
 def evaluate_board(board, color):
-    stage = get_stage(board)
-    weights = STAGE_WEIGHTS[stage]
     opponent = -color
-    score = 0
-    # 基础位置分
-    for x in range(1,9):
-        for y in range(1,9):
+    my_pieces = opp_pieces = 0
+    position_score = corner_score = 0
+    for x in range(1, 9):
+        for y in range(1, 9):
             if board[x][y] == color:
-                score += weights[x][y]
+                my_pieces += 1
+                position_score += POSITION_WEIGHTS[x-1][y-1]
+                if (x, y) in [(1,1),(1,8),(8,1),(8,8)]:
+                    corner_score += 30
             elif board[x][y] == opponent:
-                score -= weights[x][y]
-    # 稳定子
-    stable_gain = count_stable_discs(board, color) - count_stable_discs(board, opponent)
-    score += stable_gain * (5 if stage!='endgame' else 2)
-    return score
+                opp_pieces += 1
+                position_score -= POSITION_WEIGHTS[x-1][y-1]
+                if (x, y) in [(1,1),(1,8),(8,1),(8,8)]:
+                    corner_score -= 30
+    my_moves = len(PossibleMove(color, board))
+    opp_moves = len(PossibleMove(opponent, board))
+    mobility_score = (my_moves - opp_moves) * 2
+    total = my_pieces + opp_pieces
+    diff = my_pieces - opp_pieces
+    if total > 50:
+        return diff*8 + position_score + corner_score + mobility_score
+    else:
+        return diff*2 + position_score*2 + corner_score + mobility_score*2
 
-# Minimax + α–β 剪枝（就地修改+撤销+排序）
+# Minimax + α–β 剪枝（就地修改 + 撤销）
 def minimax(board, depth, alpha, beta, maximizing, color):
     if depth == 0:
         return evaluate_board(board, color), None
@@ -135,50 +75,66 @@ def minimax(board, depth, alpha, beta, maximizing, color):
     if not moves:
         val, _ = minimax(board, depth-1, alpha, beta, not maximizing, color)
         return val, None
-    # 排序：角落首选，危险区最末
-    danger = {(1,2),(2,1),(2,2),(1,7),(2,7),(2,8),(7,1),(7,2),(8,2),(7,7),(7,8),(8,7)}
-    def key(m):
-        return (0 if m in [(1,1),(1,8),(8,1),(8,8)] else
-                2 if m in danger else
-                1)
-    moves.sort(key=key)
+    # 按角落、边缘、其他排序
+    def move_key(m):
+        x, y = m
+        if (x, y) in [(1,1),(1,8),(8,1),(8,8)]: return 0
+        if x in (1,8) or y in (1,8):      return 1
+        return 2
+    moves.sort(key=move_key)
     best_move = moves[0]
     if maximizing:
-        max_eval = -1e9
-        for x,y in moves:
+        max_eval = -float('inf')
+        for x, y in moves:
             flips = apply_move(board, current, x, y)
-            val, _ = minimax(board, depth-1, alpha, beta, False, color)
+            eval_v, _ = minimax(board, depth-1, alpha, beta, False, color)
             undo_move(board, current, x, y, flips)
-            if val > max_eval:
-                max_eval, best_move = val, (x,y)
-            alpha = max(alpha, val)
-            if alpha >= beta: break
+            if eval_v > max_eval:
+                max_eval, best_move = eval_v, (x, y)
+            alpha = max(alpha, eval_v)
+            if alpha >= beta:
+                break
         return max_eval, best_move
     else:
-        min_eval = 1e9
-        for x,y in moves:
+        min_eval = float('inf')
+        for x, y in moves:
             flips = apply_move(board, current, x, y)
-            val, _ = minimax(board, depth-1, alpha, beta, True, color)
+            eval_v, _ = minimax(board, depth-1, alpha, beta, True, color)
             undo_move(board, current, x, y, flips)
-            val = val
-            if val < min_eval:
-                min_eval, best_move = val, (x,y)
-            beta = min(beta, val)
-            if beta <= alpha: break
+            if eval_v < min_eval:
+                min_eval, best_move = eval_v, (x, y)
+            beta = min(beta, eval_v)
+            if beta <= alpha:
+                break
         return min_eval, best_move
+
+# 简易开局策略
+def get_opening_move(board, color):
+    moves = PossibleMove(color, board)
+    order = [(3,3),(3,6),(6,3),(6,6),(4,3),(3,4),(5,6),(6,5)]
+    for pos in order:
+        if pos in moves:
+            return pos
+    return moves[0] if moves else None
 
 # AI 主函数
 def player(color, board):
     moves = PossibleMove(color, board)
-    if not moves: return (0,0)
-    # 角落抢占
-    for c in [(1,1),(1,8),(8,1),(8,8)]:
-        if c in moves: return c
-    # 动态深度
+    if not moves:
+        return (0, 0)
+    # 计算阶段
     total = sum(r.count(1)+r.count(-1) for r in board)
+    if total <= 12:
+        om = get_opening_move(board, color)
+        if om: return om
     rem = 64 - total
-    depth = rem if rem<=8 else 5 if total>50 else 3
-    _, best = minimax(board, depth, -1e9, 1e9, True, color)
+    if rem <= 8:
+        depth = rem
+    elif total > 50:
+        depth = 5
+    else:
+        depth = 3
+    _, best = minimax(board, depth, -float('inf'), float('inf'), True, color)
     if best not in moves:
         best = random.choice(moves)
     return best
