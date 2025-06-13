@@ -24,42 +24,10 @@ DANGER_ZONES = (
 
 CountPlayer = lambda color, board: sum(board[i].count(color) for i in range(1, 9))
 
-def evaluate_board(my_color, b0, board, opp_moves):
+
+def evaluate_board(my_color, board, my_moves, opp_moves):
     """评估棋盘状态"""
-    score = opp_moves * 10
-    opp_color = -my_color
-    # 1. 棋子位置权重
-    for x in range(1, 9):
-        for y in range(1, 9):
-            z=board[x][y]
-            b=z!=b0[x][y]
-            if z == my_color:
-                score += POSITION_WEIGHTS[x - 1][y - 1]
-                if (x,y) in CORNERS:
-                    score += 50 + b*10
-            elif z == opp_color:
-                score -= POSITION_WEIGHTS[x - 1][y - 1]
-                if (x,y) in CORNERS:
-                    score -= 50 + b*10
-                # 检查危险区域
-                elif (x,y) in DANGER_ZONES:
-                    score -= 10 + b*5
-            elif (x,y) in CORNERS:
-                # 检查对手是否能直接占据这个角落
-                for nx, ny in NeighbourPosition:
-                    nx+=x; ny+=y
-                    if 9>nx>0<ny<9 and z == opp_color:
-                        score -= 30 + b*10
-                        break
-            else:
-                score += b*5
-
-    return score
-
-
-def evaluate_board1(my_color, b0, board, opp_moves):
-    """评估棋盘状态"""
-    score = ( opp_moves) * 10
+    score = 0
     opp_color = -my_color
     # 1. 棋子位置权重
     for x in range(1, 9):
@@ -70,6 +38,8 @@ def evaluate_board1(my_color, b0, board, opp_moves):
                 score -= POSITION_WEIGHTS[x - 1][y - 1]
 
     # 2. 行动力评估
+    score += (my_moves - opp_moves) * 10
+
     # 3. 角落控制
     for corner in CORNERS:
         x, y = corner
@@ -78,6 +48,15 @@ def evaluate_board1(my_color, b0, board, opp_moves):
         elif board[x][y] == opp_color:
             score -= 50
     # 4. 潜在威胁评估
+    score -= evaluate_threats(my_color, board)
+    return score
+
+
+def evaluate_threats(color, board):
+    """评估潜在威胁"""
+    threat_score = 0
+    opp_color = -color
+
     # 检查对手能否占据角落
     for corner in CORNERS:
         x, y = corner
@@ -86,15 +65,16 @@ def evaluate_board1(my_color, b0, board, opp_moves):
             for dx, dy in NeighbourPosition:
                 nx, ny = x + dx, y + dy
                 if ValidCell(nx, ny) and board[nx][ny] == opp_color:
-                    score -= 30
+                    threat_score += 30
                     break
+
     # 检查危险区域
     for danger in DANGER_ZONES:
         x, y = danger
         if board[x][y] == opp_color:
-            score -= 10
+            threat_score += 10
 
-    return score
+    return threat_score
 
 
 def player(color, board):
@@ -106,12 +86,11 @@ def player(color, board):
     ts = 80-CountPlayer(Empty, board)
     we1 = []
     opp=-color
-    n=len(moves)
     for m in moves:
         nb = BoardCopy(board)
         PlaceMove(color, nb, *m)
         opp_moves = PossibleMove(opp, nb)
-        s=-evaluate_board(color, board, nb, n-len(opp_moves))
+        s=-evaluate_board(color, nb, len(moves), len(opp_moves))
         if m in CORNERS:
             s+=200
         elif m in DANGER_ZONES:
@@ -133,9 +112,9 @@ def player(color, board):
             if op in CORNERS:
                 ps=500
             else:
-                ps=evaluate_board1(opp, nb , npb, l-len(ms)) if ts>50 else evaluate_board(opp, nb , npb, l-len(ms))
+                ps=evaluate_board(opp, npb, l, len(ms))
                 if op in DANGER_ZONES:
-                    ps-=100
+                    ps-=50
                 else:
                     ps += POSITION_WEIGHTS[op[0]-1][op[1]-1]
             c = CountPlayer(opp, npb)
@@ -180,6 +159,7 @@ def player(color, board):
             s += (len(sv)-l)*5 + (my_moves - x-1)*opa
             s+= (sum(CountPlayer(color, zb) for zb in zs) - (1 + c)*len(zs)) * 3
             me.append(s)
-        cs.append(sum(me)/len(me)/2 + min(me)/2 if me else -1000 )
+        cs.append(sum(me)/len(me)/2 + min(me)/2 if me else -500 )
         me.clear()
     return we1[max(range(len(cs)), key=lambda i: cs[i])][1]
+
