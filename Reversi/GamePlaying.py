@@ -12,7 +12,24 @@ from math import log
 
 from openpyxl import Workbook, load_workbook
 
+# 创建日志文件
+log_filename = f"game_log_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+log_file = open(log_filename, 'w')
+
 old_stdout = sys.stdout
+
+# 同时输出到控制台和日志文件的函数
+def log_print(*args, **kwargs):
+    # 保存原始的end和sep值
+    end_val = kwargs.get('end', '\n')
+    sep_val = kwargs.get('sep', ' ')
+    
+    # 打印到控制台
+    print(*args, **kwargs)
+    
+    # 打印到日志文件
+    print(*args, sep=sep_val, end=end_val, file=log_file)
+    log_file.flush()  # 确保立即写入文件
 
 # Disable
 def blockPrint():
@@ -32,6 +49,9 @@ wb = Workbook()
 ws = wb.active
 StartTime = datetime.datetime.now()
 
+# 记录游戏开始时间到日志文件
+log_print(f"游戏开始时间: {StartTime.strftime('%Y-%m-%d %H:%M:%S')}")
+
 play_round = 1#100
 pk_function = []
 pk_player = []
@@ -40,17 +60,16 @@ for k in range(len(StudentList)):
     play = importlib.util.find_spec(StudentList[k])
     if (play is not None):
         try:
-            print(f"loading player function from {StudentList[k]}")
+            log_print(f"loading player function from {StudentList[k]}")
             play = importlib.import_module(StudentList[k])
             pk_function.append(play.player)
             pk_player.append(StudentList[k])
             pk_time.append(0)
         except Exception as e:
-            print(f"exception happen when loading player function from {StudentList[k]}\
-                \r\n the exception is {e}")
+            log_print(f"exception happen when loading player function from {StudentList[k]}\                \r\n the exception is {e}")
             buf = [str(e)]
             ws.append(buf)
-print(f"Loaded players are: {pk_player}", f"Total number of players is: {len(pk_player)}")
+log_print(f"Loaded players are: {pk_player}", f"Total number of players is: {len(pk_player)}")
 buf = ['student']
 buf.extend(pk_player)
 ws.append(buf)
@@ -92,33 +111,33 @@ for i in range(len(pk_function)):
             pk_time[j] = pk_time[j] + PlayTime[0]
             pk_time[i] = pk_time[i] + PlayTime[1]
             if result == PlayerSlow:
-                print(pk_player[j], 'is a slow player')
+                log_print(pk_player[j], 'is a slow player')
                 slow_player.append(j)
                 mark[i][j] = 0
                 break
             elif result == PlayerError:
-                print(pk_player[j], 'has error', error)
+                log_print(pk_player[j], 'has error', error)
                 error_player.append(j)
                 error_message.append(error)
                 mark[i][j] = 0
                 break
             elif result == IllegalMove:
-                print(pk_player[j], 'illegal move')
+                log_print(pk_player[j], 'illegal move')
                 illegal_player.append(j)
                 mark[i][j] = 0
                 break
             elif result == -PlayerSlow:
-                print(pk_player[i], 'is a slow player')
+                log_print(pk_player[i], 'is a slow player')
                 slow_player.append(i)
                 mark[j][i] = 0
                 break
             elif result == -IllegalMove:
-                print(pk_player[i], 'illegal move')
+                log_print(pk_player[i], 'illegal move')
                 illegal_player.append(i)
                 mark[j][i] = 0
                 break
             elif result == -PlayerError:
-                print(pk_player[i], 'has error', error)
+                log_print(pk_player[i], 'has error', error)
                 error_player.append(i)
                 error_message.append(error)
                 mark[j][i] = 0
@@ -140,33 +159,33 @@ for i in range(len(pk_function)):
             pk_time[j] = pk_time[j] + PlayTime[1]
             pk_time[i] = pk_time[i] + PlayTime[0]
             if result == PlayerSlow:
-                print(pk_player[i], 'is a slow player')
+                log_print(pk_player[i], 'is a slow player')
                 slow_player.append(i)
                 mark[j][i] = 0
                 break
             elif result == IllegalMove:
-                print(pk_player[i], 'illegal move')
+                log_print(pk_player[i], 'illegal move')
                 illegal_player.append(i)
                 mark[j][i] = 0
                 break
             elif result == PlayerError:
-                print(pk_player[i], 'has error', error)
+                log_print(pk_player[i], 'has error', error)
                 error_player.append(i)
                 error_message.append(error)
                 mark[j][i] = 0
                 break
             elif result == -PlayerSlow:
-                print(pk_player[j], 'is a slow player')
+                log_print(pk_player[j], 'is a slow player')
                 slow_player.append(j)
                 mark[i][j] = 0
                 break
             elif result == -IllegalMove:
-                print(pk_player[j], 'illegal move')
+                log_print(pk_player[j], 'illegal move')
                 illegal_player.append(j)
                 mark[i][j] = 0
                 break
             elif result == -PlayerError:
-                print(pk_player[j], 'has error', error)
+                log_print(pk_player[j], 'has error', error)
                 error_player.append(j)
                 error_message.append(error)
                 mark[i][j] = 0
@@ -178,7 +197,7 @@ for i in range(len(pk_function)):
             elif result == 0:
                 mark[i][j] = mark[i][j] + 1
                 mark[j][i] = mark[j][i] + 1
-        print(pk_player[i]+'('+ "%.5f" %  pk_time[i], 's) vs ',
+        log_print(pk_player[i]+'('+ "%.5f" %  pk_time[i], 's) vs ',
               pk_player[j]+'('+ '%.5f' %  pk_time[j], 's)',
               #'%.5f' % (time.time()-start),
               mark[i][j], ':', mark[j][i])
@@ -193,13 +212,13 @@ for i in range(len(pk_function)):
     ws.append(buf[i])
 try:
     wb.save("sample.xlsx")
-    print("sample.xlsx is saved")
+    log_print("sample.xlsx is saved")
 except:
     wb.save("sample1.xlsx")
-    print("sample1.xlsx is saved")
+    log_print("sample1.xlsx is saved")
 
 TotalTime = sum(pk_time)
-print('Total Time PK time is:', '%.2f' % TotalTime)
+log_print('Total Time PK time is:', '%.2f' % TotalTime)
 
 pk_time_average = sum(pk_time)/len(pk_time)
 pk_time_max = max(pk_time)
@@ -214,7 +233,10 @@ TimeUsedSec = TimeUsedSec % 60
 TimeStamp = 'Started at: ' + str(StartTime)[0:19] + '; ' + str(play_round) + \
             ' trails; Time consumed: %02.0f' % TimeUsedHour + ':' + \
             '%02.0f' % TimeUsedMin + ':' + '%03.1f' % TimeUsedSec
-print(TimeStamp)
+log_print(TimeStamp)
+
+# 记录游戏结束时间到日志文件
+log_print(f"游戏结束时间: {EndTime.strftime('%Y-%m-%d %H:%M:%S')}")
 
 wb = Workbook()
 ws = wb.active
@@ -224,7 +246,7 @@ ws.append(['Student', 'Time Percentage', 'Time Used', 'Time Rank', 'Factor', 'Sc
 
 for i in range(len(pk_function)):
     Remark = ' '
-    print(pk_player[i], " time percetage:", '%.3f' % (pk_time[i]/TotalTime*100), " time:", '%.5f' % pk_time[i])
+    log_print(pk_player[i], " time percetage:", '%.3f' % (pk_time[i]/TotalTime*100), " time:", '%.5f' % pk_time[i])
     score = sum(buf[i][1:len(buf[i])])
     if illegal_player.count(i) > 0 or slow_player.count(i) > 0 \
        or error_player.count(i) >0 :
@@ -233,8 +255,8 @@ for i in range(len(pk_function)):
     else:
         factor = log(pk_time_average/pk_time[i]+10, 10)
     final = score * factor
-    buf1 = [pk_player[i], str(pk_time[i]/TotalTime*100), pk_time[i], '=rank(c' + str(i+2) + ', c2:c50,1)',
-            factor, score, '=rank(f' + str(i+2) + ', f2:f50)', final, '=rank(h' + str(i+2) + ', h2:h50)']
+    buf1 = [pk_player[i], str(pk_time[i]/TotalTime*100), pk_time[i], '=rank(c' + str(i+2) + ', c2:c80,1)',
+            factor, score, '=rank(f' + str(i+2) + ', f2:f80)', final, '=rank(h' + str(i+2) + ', h2:h80)']
     if illegal_player.count(i) > 0:
         Remark = Remark + 'Illegal Move '
     elif slow_player.count(i) > 0:
@@ -246,7 +268,11 @@ for i in range(len(pk_function)):
 buf = []
 try:
     wb.save("time.xlsx")
-    print("result saved in time.xlsx")
+    log_print("result saved in time.xlsx")
 except:
     wb.save("time1.xlsx")
-    print("result saved in time1.xlsx")
+    log_print("result saved in time1.xlsx")
+
+# 关闭日志文件
+log_print(f"日志文件已保存为: {log_filename}")
+log_file.close()
